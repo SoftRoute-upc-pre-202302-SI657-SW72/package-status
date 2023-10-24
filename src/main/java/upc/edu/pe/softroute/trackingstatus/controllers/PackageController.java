@@ -1,100 +1,79 @@
 package upc.edu.pe.softroute.trackingstatus.controllers;
 
+import upc.edu.pe.softroute.trackingstatus.entity.PackageEntity;
+import upc.edu.pe.softroute.trackingstatus.service.PackageService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import upc.edu.pe.softroute.trackingstatus.domain.models.Package;
-import upc.edu.pe.softroute.trackingstatus.domain.services.PackageService;
-import upc.edu.pe.softroute.trackingstatus.dto.trackingDTO;
 
+import javax.validation.Valid;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/packages")
 @CrossOrigin(origins = "*")
-@Api(value = "Web Service RESTFul of Packages", tags = "Packages")
+@Api(value = "Package Microservice", description = "This API has a CRUD for Packages")
 public class PackageController {
 
     @Autowired
-    private PackageService packageService;
+    PackageService packageService;
 
-    @GetMapping
-    @ApiOperation(value = "List all Packages", notes = "Method to list all Packages")
-    @ApiResponses({
-            @ApiResponse(code = 200, message = "Packages found"),
-            @ApiResponse(code = 404, message = "Packages Not Found"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
-    })
-    public ResponseEntity<List<trackingDTO>> findAllPackages() {
-        try {
-            List<Package> packages = packageService.findAllPackages();
-            if (packages.isEmpty()) return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-
-            List<trackingDTO> trackingDTOList = packages.stream()
-                    .map(this::convertToDTO)
-                    .collect(Collectors.toList());
-            return new ResponseEntity<>(trackingDTOList, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    @GetMapping("/{trackingNumber}")
-    @ApiOperation(value = "Find Package by Tracking Number", notes = "Method to find a Package by its Tracking Number")
-    @ApiResponses({
-            @ApiResponse(code = 200, message = "Package found"),
-            @ApiResponse(code = 404, message = "Package Not Found"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
-    })
-    public ResponseEntity<trackingDTO> findPackageByTrackingNumber(@PathVariable Integer trackingNumber) {
-        try {
-            Optional<Package> packageOptional = packageService.findPackageByTrackingNumber(trackingNumber);
-            if (!packageOptional.isPresent()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-
-            trackingDTO trackingDTO = convertToDTO(packageOptional.get());
-            return new ResponseEntity<>(trackingDTO, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    @PostMapping
-    @ApiOperation(value = "Create Package", notes = "Method to create a new Package")
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiOperation(value = "Save a new Package", notes = "This method save a new Package")
     @ApiResponses({
             @ApiResponse(code = 201, message = "Package created successfully"),
-            @ApiResponse(code = 400, message = "Invalid input"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 404, message = "Package not found"),
+            @ApiResponse(code = 501, message = "Internal Server Error")
     })
-    public ResponseEntity<trackingDTO> createPackage(@RequestBody trackingDTO trackingDTO) {
+    public ResponseEntity<PackageEntity> savePackage(@Valid @RequestBody PackageEntity packageEntity) {
         try {
-            Package packageObj = convertToEntity(trackingDTO);
-            Package createdPackage = packageService.savePackage(packageObj);
-            return new ResponseEntity<>(convertToDTO(createdPackage), HttpStatus.CREATED);
+            PackageEntity packageNew = packageService.save(packageEntity);
+            return ResponseEntity.status(HttpStatus.CREATED).body(packageNew);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // Métodos PUT, DELETE, etc. pueden ser agregados aquí siguiendo la misma estructura.
-
-    private trackingDTO convertToDTO(Package packageObj) {
-        trackingDTO dto = new trackingDTO(null, null);
-        dto.setTrackingNumber(packageObj.getTrackingNumber());
-        dto.setStatus(packageObj.getStatus());
-        return dto;
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiOperation(value = "Get all Packages", notes = "This method get all Packages")
+    @ApiResponses({
+            @ApiResponse(code = 201, message = "Packages found"),
+            @ApiResponse(code = 404, message = "Packages not found"),
+            @ApiResponse(code = 501, message = "Internal Server Error")
+    })
+    public ResponseEntity<List<PackageEntity>> getAll() {
+        List<PackageEntity> packages = packageService.getAll();
+        return ResponseEntity.status(HttpStatus.OK).body(packages);
     }
 
-    private Package convertToEntity(trackingDTO dto) {
-        Package packageObj = new Package();
-        packageObj.setTrackingNumber(dto.getTrackingNumber());
-        packageObj.setStatus(dto.getStatus());
-        return packageObj;
+    @GetMapping(value = "/{trackingNumber}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ApiOperation(value = "Get Package by Tracking Number", notes = "This method get Package by Tracking Number")
+    @ApiResponses({
+            @ApiResponse(code = 201, message = "Package found"),
+            @ApiResponse(code = 404, message = "Package not found"),
+            @ApiResponse(code = 501, message = "Internal Server Error")
+    })
+    public ResponseEntity<PackageEntity> getPackageByTrackingNumber(@PathVariable("trackingNumber") Integer trackingNumber) {
+        try {
+            PackageEntity packageEntity = packageService.getPackageByTrackingNumber(trackingNumber);
+            if (packageEntity == null) {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.status(HttpStatus.OK).body(packageEntity);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
+
+
+
+
+    // Otros métodos PUT, DELETE, etc. pueden ser agregados aquí siguiendo la misma estructura.
+
 }
